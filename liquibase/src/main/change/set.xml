@@ -1,0 +1,384 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-2.0.xsd">
+
+    <changeSet author="musixin" id="1">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                <![CDATA[
+                    select count(1) from information_schema.tables where table_name = 'mixing_mode'
+               ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+                drop table mixing_mode;
+
+                CREATE TABLE "mixing_mode" (
+                    "id" serial NOT NULL,
+                    "name" text NOT NULL,
+                    CONSTRAINT "mixing_mode_pk" PRIMARY KEY ("id")
+                );
+            ]]>
+        </sql>
+    </changeSet>
+
+    <changeSet author="musixin" id="2">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+               <![CDATA[
+                    select count(1) from information_schema.tables where table_name = 'mixing_mode'
+               ]]>
+            </sqlCheck>
+            <sqlCheck expectedResult="0">
+                <![CDATA[
+                    select count(1) from mixing_mode where id in (1,2,3);
+                ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+                INSERT INTO mixing_mode VALUES
+                 (1, 'Смешанный режим');
+                INSERT INTO mixing_mode VALUES
+                 (2, 'Оригинал -> Перевод');
+                INSERT INTO mixing_mode VALUES
+                 (3, 'Перевод -> Оригинал');
+            ]]>
+        </sql>
+    </changeSet>
+
+    <changeSet id="l-1" author="qwe">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                <![CDATA[
+                    select count(1) from information_schema.tables where table_name = 'file_temp';
+                ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+
+                CREATE TABLE "file_temp" (
+                    "id" serial NOT NULL,
+                    "user_file" text NOT NULL,
+                    CONSTRAINT "file_temp_pk" PRIMARY KEY ("id")
+                );
+            ]]>
+        </sql>
+    </changeSet>
+
+    <changeSet id="l-3" author="qwe">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                <![CDATA[
+                    select count(1) from information_schema.tables where table_name = 'file_temp';
+                ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+                DROP TABLE file_temp;
+
+                CREATE TABLE "file_temp" (
+                    "id" serial NOT NULL,
+                    "user_file" bytea NOT NULL,
+                    CONSTRAINT "file_temp_pk" PRIMARY KEY ("id")
+                );
+            ]]>
+        </sql>
+    </changeSet>
+
+    <changeSet id="l-4" author="qwe">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                <![CDATA[
+                    select count(1) from "word_group";
+                ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+                    alter table "users" alter column "telegram_user_id" drop not null;
+
+            ]]>
+        </sql>
+    </changeSet>
+
+    <changeSet id="l-5" author="qwe">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                <![CDATA[
+                    select count(1) from "word_group";
+                ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+            alter table "word_group" add column "entity_id" integer;
+            alter table "word_group" add column "deleted_date" timestamp;
+            ]]>
+        </sql>
+    </changeSet>
+
+    <changeSet author="musixin" id="m-1">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="1">
+                <![CDATA[
+                    select count(1) from information_schema.tables where table_name = 'group_repeat_date'
+               ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+                drop table group_repeat_date;
+
+                CREATE TABLE "group_repeat_notification" (
+                    "id"                         SERIAL NOT NULL,
+                    "group_id"                   INTEGER NOT NULL,
+                    "notification_date"          DATE NOT NULL,
+                    "is_sent"                    BOOLEAN NOT NULL
+
+                    CONSTRAINT "group_repeat_notification_id" PRIMARY KEY ("id")
+                );
+            ]]>
+        </sql>
+    </changeSet>
+
+    <changeSet author="musixin" id="m-2">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                <![CDATA[
+                    select count(1) from information_schema.tables
+                    where table_name = 'notification_type'
+               ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+                CREATE TABLE "notification_type" (
+                    "id" serial NOT NULL,
+                    "name" text NOT NULL,
+                    CONSTRAINT "notification_type_pk" PRIMARY KEY ("id")
+                );
+
+                 INSERT INTO notification_type VALUES
+                 (1, 'Почтовые уведомления');
+                INSERT INTO notification_type VALUES
+                 (2, 'Web - уведомления');
+                INSERT INTO notification_type VALUES
+                 (3, 'Telegram - уведомления');
+            ]]>
+        </sql>
+    </changeSet>
+
+    <changeSet author="musixin" id="m-3">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                <![CDATA[
+                    select count(1) from information_schema.columns where table_name = 'users'
+                    and column_name = 'notification_type';
+               ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+                alter table users add notification_type INTEGER;
+                comment on column users.notification_type is 'Тип уведомлений';
+            ]]>
+        </sql>
+    </changeSet>
+
+    <changeSet author="musixin" id="m-5">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                <![CDATA[
+                    select count(1) from information_schema.columns where table_name = 'users'
+                    and column_name = 'telegram_chat_id';
+               ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+                alter table users add telegram_chat_id BIGINT;
+                comment on column users.telegram_chat_id is 'Идентификатор чата с ботом в телеграм';
+            ]]>
+        </sql>
+    </changeSet>
+
+    <changeSet author="musixin" id="m-6">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                <![CDATA[
+                    select count(1) from information_schema.tables
+                     where table_name = 'user_authorization_token'
+               ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+                CREATE TABLE "user_authorization_token" (
+                    "id"          SERIAL NOT NULL,
+                    "token"       TEXT NOT NULL,
+                    "is_actual"   BOOLEAN NOT NULL DEFAULT FALSE,
+                    CONSTRAINT "user_authorization_token" PRIMARY KEY ("id")
+                );
+            ]]>
+        </sql>
+
+    </changeSet>
+    <changeSet author="qwe" id="l-6">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                <![CDATA[
+                    select count(1) from information_schema.tables where table_name = 'word_bot_session'
+               ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+               CREATE TABLE "word_bot_session" (
+
+                 "id" SERIAL,
+                 "telegram_id" INTEGER,
+                 "is_started" BOOLEAN NOT NULL DEFAULT FALSE,
+                 "status" INTEGER,
+                 "current_word_group_id" INTEGER,
+                 "word_original" VARCHAR(30),
+                 "word_translated" VARCHAR(30),
+
+                 PRIMARY KEY ("id")
+
+                 );
+            ]]>
+        </sql>
+    </changeSet>
+    <changeSet author="qwe" id="l-7">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                <![CDATA[
+                    select count(1) from information_schema.tables where table_name = 'word_bot_session'
+               ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+               CREATE TABLE "word_bot_session" (
+
+                 "id" SERIAL,
+                 "telegram_id" INTEGER,
+                 "is_started" BOOLEAN NOT NULL DEFAULT FALSE,
+                 "status" INTEGER,
+                 "current_word_group_id" INTEGER,
+                 "word_original" VARCHAR(30),
+                 "word_translated" VARCHAR(30),
+
+                 PRIMARY KEY ("id")
+
+                 );
+            ]]>
+        </sql>
+    </changeSet>
+    <changeSet author="qwe" id="l-8">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                <![CDATA[
+                    select count(1) from information_schema.columns where table_name = 'word_bot_session'
+                    and column_name = 'current_repeated_word';
+               ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+              alter table word_bot_session add column "current_repeated_word" integer;
+            ]]>
+        </sql>
+    </changeSet>
+    <changeSet author="qwe" id="l-9">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                <![CDATA[
+                    select count(1) from information_schema.columns where table_name = 'word_bot_session'
+                    and column_name = 'current_repeated_words';
+               ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+
+                alter table word_bot_session rename column current_repeated_word to current_repeated_words;
+                alter table word_bot_session alter column current_repeated_words type text;
+
+            ]]>
+        </sql>
+    </changeSet>
+    <changeSet author="qwe" id="l-10">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                <![CDATA[
+                    select count(1) from information_schema.columns where table_name = 'word_bot_session'
+                    and column_name = 'current_repeated_word_id';
+               ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+
+                alter table word_bot_session add column "current_repeated_word_id" integer;
+                alter table word_bot_session add constraint word_fk foreign key (current_repeated_word_id) references word (id);
+
+            ]]>
+        </sql>
+    </changeSet>
+    <changeSet author="qwe" id="l-11">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                <![CDATA[
+                    select count(1) from information_schema.columns where table_name = 'group_repeat_notification'
+                    and column_name = 'is_repeated';
+               ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+                    alter table group_repeat_notification add column is_repeated boolean, add column days_for_repeat integer;
+            ]]>
+        </sql>
+    </changeSet>
+    <changeSet author="qwe" id="l-12">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="NO">
+                <![CDATA[
+                    select is_nullable from information_schema.columns where columns.column_name = 'user_email'
+               ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+                     alter table "users" alter column telegram_user_id drop not null;
+                     alter table "users" alter column user_email drop not null;
+                     alter table "users" alter column user_password drop not null;
+                     alter table "users" alter column telegram_chat_id drop not null;
+                     alter table "users" alter column notification_type drop not null;
+            ]]>
+        </sql>
+    </changeSet>
+    <changeSet author="qwe" id="l-13">
+    <preConditions onFail="MARK_RAN">
+        <sqlCheck expectedResult="0">
+            <![CDATA[
+                    select count(1) from information_schema.columns where table_name = 'word_bot_session'
+                    and column_name = 'shuffling_words';
+               ]]>
+        </sqlCheck>
+    </preConditions>
+    <sql>
+        <![CDATA[
+
+                alter table word_bot_session add column "shuffling_words" text;
+
+            ]]>
+    </sql>
+    </changeSet>
+</databaseChangeLog>

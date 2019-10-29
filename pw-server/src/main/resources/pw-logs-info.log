@@ -1,0 +1,4 @@
+2019-08-11 03:45:43,635 INFO r.p.j.Application [main] Starting Application on VAIO with PID 11064 (started by Андрей in C:\Users\Андрей\IdeaProjects\p_w_java-master)
+2019-08-11 03:45:43,663 INFO r.p.j.Application [main] No active profile set, falling back to default profiles: default
+2019-08-11 03:46:06,872 INFO r.p.j.Application [main] Started Application in 25.528 seconds (JVM running for 37.924)
+2019-08-11 03:46:37,372 INFO r.p.j.c.UserController [http-nio-9000-exec-2] user with id: 15 has entered
