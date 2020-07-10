@@ -1,0 +1,10 @@
+/pw-server/target/
+/pw-server/node_modules/
+/pw-server/pw-server.iml
+.idea
+telegram-bot
+pw-server/yarn-error.log
+pw-server/yarn.lock
+liquibase
+pw-app.iml
+yarn-error.log
