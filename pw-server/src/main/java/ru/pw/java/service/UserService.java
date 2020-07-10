@@ -4,18 +4,23 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.PostMapping;
+import ru.pw.java.enums.PwRoles;
 import ru.pw.java.model.enums.ValidationError;
 import ru.pw.java.model.exception.ValidateException;
+import ru.pw.java.model.pojo.PwUserDetails;
 import ru.pw.java.model.shared.PwRequestContext;
 import ru.pw.java.repository.UserRepository;
 import ru.pw.java.tables.pojos.Users;
 import ru.pw.java.util.TelegramCodeUtil;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import javax.validation.constraints.NotNull;
+import java.util.*;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static org.springframework.util.StringUtils.isEmpty;
 
@@ -26,68 +31,71 @@ import static org.springframework.util.StringUtils.isEmpty;
 @Service
 public class UserService {
 
+    private final MailService mailService;
+    private final UserRepository repository;
+    private final PwRequestContext pwRequestContext;
 
-    @Autowired
-    UserRepository repository;
-
-    @Autowired
-    MailService mailService;
-
-    @Autowired
-    PwRequestContext pwRequestContext;
 
     private final static String MAIL_PATTERN = "^[_A-Za-z0-9-\\+]+(\\.[_A-Za-z0-9-]+)*@" +
             "[A-Za-z0-9-]+(\\.[A-Za-z0-9]+)*(\\.[A-Za-z]{2,})$";
 
-    private final static String PASSWORD_PATTERN = "(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=])(?=\\S+$).{8,}";
+    private static final String PASSWORD_PATTERN = "(?=.*[0-9])(?=.*[a-z])(?=.*[A-Z])(?=.*[@#$%^&+=])(?=\\S+$).{8,}";
 
     private static final Logger log = LogManager.getLogger(UserService.class);
 
+    public UserService(MailService mailService,
+                       UserRepository repository,
+                       PwRequestContext pwRequestContext) {
 
-    public Optional<Users> getById(Integer id) {
-        Optional<Users> userOptional = repository.getUserById(id);
-
-        if (userOptional.isPresent()) {
-            return Optional.of(userOptional.get());
-        } else {
-            return Optional.empty();
-        }
+        this.repository = repository;
+        this.mailService = mailService;
+        this.pwRequestContext = pwRequestContext;
     }
 
-    public List<Users> getUsers(){
+    public Optional<Users> getById(Integer id) {
+        return repository.getUserById(id);
+    }
+
+    public List<Users> getUsers() {
         return repository.getAllUsers();
     }
 
-    public Optional<Users> login(String mail, String password) {
-        validateLogin(mail, password);
+    public void registration(String mail, String password, boolean isAdmin) {
+        validateRegistration(mail, password);
 
-        return repository.getUserByEmailAndPassword(mail, password);
+        Users user = repository.createUser(mail, password);
+        final Optional<PwUserDetails> currentUser = pwRequestContext.getCurrentUser();
+
+        if (currentUser.isPresent() && currentUser.get().getAuthorities()
+                        .contains(new SimpleGrantedAuthority(PwRoles.ADMIN.getLiteral()))) {
+            setAuthoritiesForUser(user.getId(), isAdmin);
+        } else {
+            setAuthoritiesForUser(user.getId(), false);
+        }
+        // mailService.sendRegisteredEmail(user);
     }
 
-    private void validateLogin(String mail, String password) {
-        List<String> errorList = new ArrayList<>();
+    private void setAuthoritiesForUser(Integer id, boolean isAdmin) {
+        repository.setRolesForUser(id, isAdmin);
+    }
 
-        if (isEmpty(mail)) {
-            errorList.add(ValidationError.EMPTY_EMAIL.getText());
-        }
-
-        if (isEmpty(password)) {
-            errorList.add(ValidationError.EMPTY_PASSWORD.getText());
-        }
+    private void validateRegistration(String mail, String password) {
+        List<String> errorList = Stream
+                .of(
+                        validateMail(mail),
+                        validatePassword(password)
+                )
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
 
         if (!errorList.isEmpty()) {
+            log.error("Failed registration");
+
             throw new ValidateException(errorList);
         }
     }
 
-    public void registration(String mail, String password) {
-        validateRegistration(mail, password);
-
-        Users user = repository.createUser(mail, password);
-        mailService.sendRegisteredEmail(user);
-    }
-
-    private void validateRegistration(String mail, String password) {
+    private List<String> validateMail(String mail) {
         List<String> errorList = new ArrayList<>();
 
         if (isEmpty(mail)) {
@@ -100,6 +108,11 @@ public class UserService {
                 errorList.add(ValidationError.INVALID_EMAIL.getText());
             }
         }
+        return errorList;
+    }
+
+    private List<String> validatePassword(String password) {
+        List<String> errorList = new ArrayList<>();
 
         if (isEmpty(password)) {
             errorList.add(ValidationError.EMPTY_PASSWORD.getText());
@@ -108,11 +121,6 @@ public class UserService {
                 errorList.add(ValidationError.INVALID_PASSWORD.getText());
             }
         }
-
-        if (!errorList.isEmpty()) {
-            log.error("Failed registration");
-
-            throw new ValidateException(errorList);
-        }
+        return errorList;
     }
 }

@@ -1,12 +1,11 @@
 package ru.pw.java.model.shared;
 
-import lombok.Getter;
-import lombok.Setter;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.annotation.RequestScope;
-import ru.pw.java.tables.pojos.Users;
+import ru.pw.java.model.pojo.PwUserDetails;
 
-import java.io.Serializable;
+import java.util.Optional;
 
 /**
  * @author Lev_S
@@ -14,11 +13,14 @@ import java.io.Serializable;
 
 @Component
 @RequestScope
-@Getter
-@Setter
 public class PwRequestContext {
 
+    public Optional<PwUserDetails> getCurrentUser() {
+        final Object principal = SecurityContextHolder.getContext().getAuthentication().getPrincipal();
 
-    private Users currentUser;
-
+        if (principal instanceof PwUserDetails) {
+            return Optional.of((PwUserDetails) principal);
+        }
+        return Optional.empty();
+    }
 }

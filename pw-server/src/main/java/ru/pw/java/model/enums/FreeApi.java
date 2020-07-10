@@ -7,7 +7,10 @@ import lombok.Getter;
  */
 
 public enum FreeApi {
-    LOGIN("/user/login"),
+
+    LOG("/login"),
+    LOGIN("/"),
+    TEST("/user/test"),
     REGISTRATION("/user/registration"),
     AUTH_TELEGRAM("/telegram/auth/code"),
     CHECK_AUTH_TELEGRAM("/token/is/actual");

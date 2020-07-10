@@ -21,7 +21,7 @@ public class MailSenderConfiguration {
     @Value("${e-mail}")
     private String email;
 
-    @Value("${password}")
+    @Value("${e-password}")
     private String password;
 
     @Bean

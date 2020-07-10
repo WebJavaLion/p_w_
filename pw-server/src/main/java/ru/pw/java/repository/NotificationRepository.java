@@ -18,15 +18,19 @@ import static ru.pw.java.tables.GroupRepeatNotification.GROUP_REPEAT_NOTIFICATIO
 @Repository
 public class NotificationRepository {
 
+    final DSLContext dslContext;
+
     @Autowired
-    DSLContext dslContext;
+    public NotificationRepository(DSLContext dslContext) {
+        this.dslContext = dslContext;
+    }
 
     public List<GroupRepeatNotification> getActualNotificationsByDate(LocalDate date) {
         return dslContext
                 .selectFrom(GROUP_REPEAT_NOTIFICATION)
                 .where(
                         GROUP_REPEAT_NOTIFICATION
-                                .NOTIFICATION_DATE.eq(Date.valueOf(date))
+                                .NOTIFICATION_DATE.eq(Date.valueOf(date).toLocalDate())
                         .and(GROUP_REPEAT_NOTIFICATION.IS_SENT.isFalse())
                 )
                 .fetchInto(GroupRepeatNotification.class);

@@ -1,5 +1,6 @@
 package ru.pw.java.model.exception;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.util.ArrayList;
@@ -10,7 +11,7 @@ import java.util.List;
  * @author Lev_S
  */
 
-@ResponseStatus
+@ResponseStatus(code = HttpStatus.BAD_REQUEST)
 public class ValidateException extends RuntimeException {
 
     private List<String> errorList;
@@ -27,12 +28,12 @@ public class ValidateException extends RuntimeException {
 
     @Override
     public String getMessage() {
-        String m = "";
+        StringBuilder m = new StringBuilder();
 
         for (String mes : errorList) {
-            m += mes + "\n";
+            m.append(mes).append("\n");
         }
 
-        return m;
+        return m.toString();
     }
 }

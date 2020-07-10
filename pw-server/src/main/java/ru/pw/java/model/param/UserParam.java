@@ -1,5 +1,6 @@
 package ru.pw.java.model.param;
 
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -7,8 +8,7 @@ import lombok.Setter;
  * @author Lev_S
  */
 
-@Getter
-@Setter
+@Data
 public class UserParam {
 
     private String mail;

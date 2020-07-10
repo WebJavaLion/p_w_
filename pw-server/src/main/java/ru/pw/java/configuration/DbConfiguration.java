@@ -44,7 +44,7 @@ public class DbConfiguration {
 
     @Bean
     public DSLContext dslContext() {
-        return DSL.using(connectionProvider(), SQLDialect.POSTGRES_10);
+        return DSL.using(connectionProvider(), SQLDialect.POSTGRES);
     }
 
     @Bean(destroyMethod = "close")
@@ -67,6 +67,6 @@ public class DbConfiguration {
 
     @Bean
     public org.jooq.Configuration configuration() {
-        return new DefaultConfiguration().set(connectionProvider()).set(SQLDialect.POSTGRES_10);
+        return new DefaultConfiguration().set(connectionProvider()).set(SQLDialect.POSTGRES);
     }
 }

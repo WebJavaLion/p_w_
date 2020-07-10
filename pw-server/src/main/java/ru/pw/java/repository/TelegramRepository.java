@@ -15,11 +15,14 @@ import static ru.pw.java.Tables.USER_AUTHORIZATION_TOKEN;
 @Repository
 public class TelegramRepository {
 
-    @Autowired
-    DSLContext dslContext;
+    private final DSLContext dslContext;
+    private final UserAuthorizationTokenDao userAuthorizationTokenDao;
 
-    @Autowired
-    UserAuthorizationTokenDao userAuthorizationTokenDao;
+    public TelegramRepository(DSLContext dslContext,
+                              UserAuthorizationTokenDao userAuthorizationTokenDao) {
+        this.dslContext = dslContext;
+        this.userAuthorizationTokenDao = userAuthorizationTokenDao;
+    }
 
     public void createToken(String hash) {
         UserAuthorizationToken token = new UserAuthorizationToken();

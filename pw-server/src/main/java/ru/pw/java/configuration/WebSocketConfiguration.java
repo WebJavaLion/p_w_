@@ -32,7 +32,7 @@ public class WebSocketConfiguration implements WebSocketMessageBrokerConfigurer 
         protected Principal determineUser(ServerHttpRequest request,
                                           WebSocketHandler wsHandler,
                                           Map<String, Object> attributes) {
-            String id = SecurityUtil.encode(pwRequestContext.getCurrentUser().getId().toString());
+            String id = SecurityUtil.encode(pwRequestContext.getCurrentUser().get().getId().toString());
 
             return () -> id;
         }

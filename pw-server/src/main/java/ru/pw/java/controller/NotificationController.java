@@ -13,17 +13,21 @@ import java.util.List;
 
 @RestController
 @RequestMapping(path = "/notification")
+@Transactional
 public class NotificationController {
 
+    final NotificationService notificationService;
+
     @Autowired
-    NotificationService notificationService;
+    public NotificationController(NotificationService notificationService) {
+        this.notificationService = notificationService;
+    }
 
     @PutMapping(value = "/confirmation/{id}")
     public void confirmationNotification(@PathVariable Integer id) {
         notificationService.markNotificationAsSent(id);
     }
 
-    @Transactional
     @PostMapping("/{groupEntityId}/create")
     public void createNotifications(@PathVariable Integer groupEntityId, @RequestBody List<String> dates) {
         notificationService.createNotifications(groupEntityId, dates);

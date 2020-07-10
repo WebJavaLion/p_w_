@@ -52,15 +52,12 @@ public abstract class ParserUtil {
                     } else if (i == 1) {
                         word.setWordTranslation(w);
                     }
-
                     i++;
                 }
-
                 result.add(word);
                 i = 0;
             }
         }
-
         return result;
     }
 }

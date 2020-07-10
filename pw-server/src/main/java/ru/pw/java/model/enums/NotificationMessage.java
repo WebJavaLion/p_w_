@@ -19,6 +19,6 @@ public enum NotificationMessage {
     private String message;
 
     NotificationMessage(String name) {
-        this.message = message;
+        this.message = name;
     }
 }

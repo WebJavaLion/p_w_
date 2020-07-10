@@ -17,13 +17,16 @@ import java.util.List;
 @Component
 public class NotificationScheduler {
 
-    @Autowired
-    NotificationService service;
+    final NotificationService service;
 
-    @Autowired
-    NotificationRepository repository;
+    final NotificationRepository repository;
 
     private final long ONE_HOUR = 60 * 60 * 1000;
+
+    public NotificationScheduler(NotificationService service, NotificationRepository repository) {
+        this.service = service;
+        this.repository = repository;
+    }
 
     @Scheduled(fixedDelay = ONE_HOUR)
     public void sendNotifications() {
@@ -32,6 +35,6 @@ public class NotificationScheduler {
 
         notifications
                 .parallelStream()
-                .forEach(notification -> service.sendNotification(notification));
+                .forEach(service::sendNotification);
     }
 }

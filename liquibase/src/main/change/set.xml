@@ -381,4 +381,53 @@
             ]]>
     </sql>
     </changeSet>
+<!--    <changeSet id="l-15" author="lev">-->
+<!--        <preConditions onFail="MARK_RAN">-->
+<!--            <sqlCheck expectedResult="1">-->
+<!--                select count(*) from information_schema.columns c where-->
+<!--                    c.table_name = 'file_temp'-->
+<!--                        and-->
+<!--                    c.column_name = 'id'-->
+<!--                        and-->
+<!--                    c.data_type = 'integer'-->
+<!--            </sqlCheck>-->
+<!--        </preConditions>-->
+<!--        <sql>-->
+<!--            <![CDATA[-->
+<!--                alter table file_temp alter column id set data type serial;-->
+<!--            ]]>-->
+<!--        </sql>-->
+<!--    </changeSet>-->
+    <changeSet id="l-15" author="l">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                <![CDATA[
+                    select count(*) from pg_type where typname = 'pw_roles'
+                ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+                create type pw_roles as enum ('ADMIN','USER');
+            ]]>
+        </sql>
+    </changeSet>
+    <changeSet id="l-16" author="l">
+        <preConditions onFail="MARK_RAN">
+            <sqlCheck expectedResult="0">
+                <![CDATA[
+                    select count(*) from information_schema.tables t where t.table_name = 'user_roles'
+                ]]>
+            </sqlCheck>
+        </preConditions>
+        <sql>
+            <![CDATA[
+                create table users_roles(
+                    user_id integer references users(id),
+                    role pw_roles,
+                    primary key(user_id, role)
+                );
+            ]]>
+        </sql>
+    </changeSet>
 </databaseChangeLog>

@@ -2,21 +2,19 @@ package ru.pw.java.controller;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import ru.pw.java.model.param.UserParam;
-import ru.pw.java.service.MailService;
+import ru.pw.java.model.pojo.PwUserDetails;
 import ru.pw.java.model.shared.PwRequestContext;
+import ru.pw.java.service.MailService;
 import ru.pw.java.service.UserService;
 import ru.pw.java.tables.pojos.Users;
-import ru.pw.java.util.SecurityUtil;
-import ru.pw.java.util.TelegramCodeUtil;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.Optional;
 
@@ -26,60 +24,47 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping(path = "/user")
+@Transactional
 public class UserController {
 
-    @Autowired
-    UserService service;
+    final UserService service;
+    final MailService mailService;
+    final PwRequestContext pwRequestContext;
 
-    @Autowired
-    MailService mailService;
+    private static final Logger log = LogManager.getLogger(UserController.class);
 
-    @Autowired
-    PwRequestContext pwRequestContext;
+    public UserController(UserService service,
+                          MailService mailService,
+                          PwRequestContext pwRequestContext) {
+        this.service = service;
+        this.mailService = mailService;
+        this.pwRequestContext = pwRequestContext;
+    }
 
-    private static final Logger log = LogManager.getLogger(UserController.class.getName());
-
-    @GetMapping(value = "/all")
-    public List<Users> getAll() {
+    @GetMapping
+    public List<Users> getAll(@AuthenticationPrincipal PwUserDetails user) {
         return service.getUsers();
     }
 
     @GetMapping(value = "/{id}")
-    public ResponseEntity getById(@PathVariable Integer id) {
+    public ResponseEntity<Users> getById(@PathVariable Integer id) {
         Optional<Users> optionalUser = service.getById(id);
 
-        if (optionalUser.isPresent()) {
-            Users user = optionalUser.get();
-            user.setUserPassword(SecurityUtil.decode(user.getUserPassword()));
-
-            return ResponseEntity.ok(optionalUser.get());
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
+        return optionalUser
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
-    @Transactional
+    @GetMapping("/test")
+    public void test() {
+        System.out.println(SecurityContextHolder.getContext().getAuthentication().getPrincipal().getClass().getName());
+    }
+
     @PostMapping("/registration")
-    public void create(@RequestBody UserParam param) {
-        service.registration(param.getMail(), param.getPassword());
+    public void create(@RequestBody UserParam param,
+                       @RequestParam(required = false, defaultValue = "false") Boolean isAdmin) {
+        System.out.println(isAdmin);
+        service.registration(param.getMail(), param.getPassword(), isAdmin);
     }
 
-    @PostMapping("/login")
-    public ResponseEntity login(@RequestBody UserParam param, HttpServletResponse response) {
-        Optional<Users> user = service.login(param.getMail(), param.getPassword());
-
-        if (user.isPresent()) {
-            response.addCookie(SecurityUtil.createCookie(user.get().getId()));
-            log.info("user with id: " + user.get().getId() + " has entered");
-
-            return ResponseEntity.ok(user.get());
-        } else {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-    }
-
-    @GetMapping("/quit")
-    public void quit(HttpServletRequest request, HttpServletResponse response) {
-        SecurityUtil.dropCookie(request.getCookies(), response);
-    }
 }

@@ -1,6 +1,5 @@
 package ru.pw.java.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import ru.pw.java.client.TelegramPwBotRestClient;
@@ -27,28 +26,31 @@ import java.util.Optional;
  */
 
 @Service
-public class NotificationService {
+public class  NotificationService {
 
-    @Autowired
-    PwRequestContext pwRequestContext;
+    private final MailService mailService;
+    private final UserRepository userRepository;
+    private final WordRepository wordRepository;
+    private final TelegramPwBotRestClient client;
+    private final GroupRepeatNotificationDao dao;
+    private final PwRequestContext pwRequestContext;
+    private final SimpMessagingTemplate messagingTemplate;
 
-    @Autowired
-    SimpMessagingTemplate messagingTemplate;
-
-    @Autowired
-    GroupRepeatNotificationDao dao;
-
-    @Autowired
-    UserRepository userRepository;
-
-    @Autowired
-    WordRepository wordRepository;
-
-    @Autowired
-    MailService mailService;
-
-    @Autowired
-    TelegramPwBotRestClient client;
+    public NotificationService(MailService mailService,
+                               UserRepository userRepository,
+                               WordRepository wordRepository,
+                               TelegramPwBotRestClient client,
+                               GroupRepeatNotificationDao dao,
+                               PwRequestContext pwRequestContext,
+                               SimpMessagingTemplate messagingTemplate) {
+        this.dao = dao;
+        this.client = client;
+        this.mailService = mailService;
+        this.userRepository = userRepository;
+        this.wordRepository = wordRepository;
+        this.pwRequestContext = pwRequestContext;
+        this.messagingTemplate = messagingTemplate;
+    }
 
     public void sendNotification(GroupRepeatNotification notification) {
         Optional<WordGroup> wordGroupOpt = wordRepository.getWordGroupById(notification.getGroupId());
@@ -106,16 +108,16 @@ public class NotificationService {
     }
 
     public void createNotifications(Integer entityId, List<String> dates) {
-        Optional<WordGroup> wordGroupOptional = wordRepository.getWordGroupByEntityId(entityId);
+        Optional<WordGroup> wordGroupOptional = wordRepository.getActualWordGroupByEntityId(entityId);
 
         if (wordGroupOptional.isPresent()) {
             WordGroup wg = wordGroupOptional.get();
 
-            if (pwRequestContext.getCurrentUser().getId().equals(wg.getUserId())) {
+            if (pwRequestContext.getCurrentUser().orElseThrow(RuntimeException::new).getId().equals(wg.getUserId())) {
                 for (String date : dates) {
                     GroupRepeatNotification notification = new GroupRepeatNotification();
 
-                    notification.setNotificationDate(Date.valueOf(date));
+                    notification.setNotificationDate(Date.valueOf(date).toLocalDate());
                     notification.setGroupId(wg.getEntityId());
                     notification.setIsSent(false);
 
@@ -140,7 +142,7 @@ public class NotificationService {
                             (new java.util.Date().getTime() +
                                     (86400000 * notification.getDaysForRepeat()
                                     )
-                            ));
+                            ).toLocalDate());
 
         }
         dao.update(notification);

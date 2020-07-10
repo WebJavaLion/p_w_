@@ -1,12 +1,17 @@
 package ru.pw.java.util;
 
 import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.codec.binary.Hex;
 
 import javax.crypto.Cipher;
+import javax.crypto.Mac;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
 
 /**
  * @author Lev_S
@@ -24,12 +29,14 @@ public abstract class SecurityUtil {
 
     public static String encode(String wordForEncrypt) {
         try {
-            IvParameterSpec initV = new IvParameterSpec(IV.getBytes("UTF-8"));
+
+
+            IvParameterSpec initV = new IvParameterSpec(IV.getBytes(StandardCharsets.UTF_8));
 
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
             cipher.init(Cipher.ENCRYPT_MODE, SECRET_KEY_SPEC, initV);
 
-            byte[] encoded = cipher.doFinal(wordForEncrypt.getBytes("UTF-8"));
+            byte[] encoded = cipher.doFinal(wordForEncrypt.getBytes(StandardCharsets.UTF_8));
 
             return Base64.encodeBase64String(encoded);
         } catch (Exception e) {
@@ -41,7 +48,7 @@ public abstract class SecurityUtil {
 
     public static String decode(String wordForDecrypt) {
         try {
-            IvParameterSpec initV = new IvParameterSpec(IV.getBytes("UTF-8"));
+            IvParameterSpec initV = new IvParameterSpec(IV.getBytes(StandardCharsets.UTF_8));
 
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
             cipher.init(Cipher.DECRYPT_MODE, SECRET_KEY_SPEC, initV);

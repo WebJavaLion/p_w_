@@ -1,10 +1,12 @@
 package ru.pw.java.repository;
 
 import org.jooq.DSLContext;
-import org.jooq.Record;
+import org.jooq.DatePart;
 import org.jooq.Result;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.jooq.impl.DSL;
 import org.springframework.stereotype.Repository;
+import org.springframework.web.bind.annotation.PostMapping;
+import ru.pw.java.Keys;
 import ru.pw.java.Sequences;
 import ru.pw.java.model.pojo.WordGroupPojo;
 import ru.pw.java.model.shared.PwRequestContext;
@@ -14,16 +16,17 @@ import ru.pw.java.tables.daos.WordGroupDao;
 import ru.pw.java.tables.pojos.FileTemp;
 import ru.pw.java.tables.pojos.Word;
 import ru.pw.java.tables.pojos.WordGroup;
+import ru.pw.java.tables.records.WordGroupRecord;
+import ru.pw.java.tables.records.WordRecord;
 
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
+import java.util.*;
+import java.util.stream.Collectors;
 
-import static ru.pw.java.Tables.FILE_TEMP;
-import static ru.pw.java.Tables.WORD;
-import static ru.pw.java.Tables.WORD_GROUP;
+import static ru.pw.java.Tables.*;
 
 /**
  * @author Lev_S
@@ -32,121 +35,163 @@ import static ru.pw.java.Tables.WORD_GROUP;
 @Repository
 public class WordRepository {
 
-    @Autowired
-    DSLContext dslContext;
+    final WordDao wordDao;
+    final DSLContext dslContext;
+    final FileTempDao fileTempDao;
+    final WordGroupDao wordGroupDao;
+    final PwRequestContext pwRequestContext;
 
-    @Autowired
-    WordDao wordDao;
+    public WordRepository(WordDao wordDao,
+                          DSLContext dslContext,
+                          FileTempDao fileTempDao,
+                          WordGroupDao wordGroupDao,
+                          PwRequestContext pwRequestContext) {
 
-    @Autowired
-    FileTempDao fileTempDao;
-
-    @Autowired
-    WordGroupDao wordGroupDao;
-
-    @Autowired
-    PwRequestContext pwRequestContext;
-
-    public Optional<WordGroup> getWordGroupByEntityId(Integer entityId) {
-        return Optional.ofNullable(
-                dslContext
-                        .selectFrom(WORD_GROUP)
-                        .where(
-                                WORD_GROUP.ENTITY_ID.eq(entityId)
-                                        .and(WORD_GROUP.DELETED_DATE.isNull())
-                        )
-                        .fetchOneInto(WordGroup.class)
-        );
+        this.wordDao = wordDao;
+        this.dslContext = dslContext;
+        this.fileTempDao = fileTempDao;
+        this.wordGroupDao = wordGroupDao;
+        this.pwRequestContext = pwRequestContext;
     }
 
-    public Optional<WordGroup> getWordGroupById(Integer id) {
-        return Optional.ofNullable(
-                dslContext
-                        .selectFrom(WORD_GROUP)
-                        .where(
-                                WORD_GROUP.ID.eq(id)
-                                        .and(WORD_GROUP.DELETED_DATE.isNull())
-                        )
-                        .fetchOneInto(WordGroup.class)
-        );
-    }
-
-    public List<WordGroup> getWordGroupList() {
+    public Optional<WordGroup> getActualWordGroupByEntityId(Integer entityId) {
         return dslContext
                 .selectFrom(WORD_GROUP)
                 .where(
-                        WORD_GROUP.USER_ID.eq(pwRequestContext.getCurrentUser().getId())
+                        WORD_GROUP.ENTITY_ID.eq(entityId)
                                 .and(WORD_GROUP.DELETED_DATE.isNull())
                 )
-                .fetchInto(WordGroup.class);
+                .fetchOptionalInto(WordGroup.class);
+    }
+
+    public Optional<WordGroup> getWordGroupById(Integer id) {
+        return dslContext
+                .selectFrom(WORD_GROUP)
+                .where(
+                        WORD_GROUP.ID.eq(id)
+                                .and(WORD_GROUP.DELETED_DATE.isNull())
+                )
+                .fetchOptionalInto(WordGroup.class)
+                .map(wg -> new WordGroupPojo(wg, getWordsByGroupId(wg.getEntityId())));
+    }
+
+    public Set<WordGroup> getSetU() {
+        return dslContext
+                .select(WORD_GROUP.fields())
+                .from(WORD_GROUP)
+                .fetchSet(w -> w.into(WordGroup.class));
+    }
+
+    public List<WordGroupPojo> getWordGroupsForUser(Integer userId) {
+        final Result<WordGroupRecord> wordGroupRecordResult = dslContext.selectFrom(WORD_GROUP)
+                .where(WORD_GROUP.USER_ID.eq(userId)
+                        .and(WORD_GROUP.DELETED_DATE.isNull())
+                )
+                .fetch();
+
+        final Result<WordRecord> wordRecordResult = dslContext
+                .selectFrom(WORD)
+                .where(WORD.GROUP_ID.in(
+                        wordGroupRecordResult.stream()
+                                .map(WordGroupRecord::getId)
+                                .collect(Collectors.toList())
+                        )
+                )
+                .fetch();
+
+        return wordGroupRecordResult.stream()
+                .map(rec -> new WordGroupPojo(
+                                rec.into(WordGroup.class),
+                                wordRecordResult.stream()
+                                        .filter(wordRec -> wordRec.getGroupId().equals(rec.getId()))
+                                        .map(wordRec -> wordRec.into(Word.class))
+                                        .collect(Collectors.toList())
+                        )
+                )
+                .collect(Collectors.toList());
     }
 
     public Integer createFile(byte[] bytes) {
-        Integer nextId = dslContext.nextval(Sequences.FILE_TEMP_ID_SEQ);
+        return dslContext
+                .insertInto(FILE_TEMP)
+                .set(FILE_TEMP.USER_FILE, bytes)
+                .returning(FILE_TEMP.ID)
+                .execute();
 
-        FileTemp fileTemp = new FileTemp();
-
-        fileTemp.setId(nextId);
-        fileTemp.setUserFile(bytes);
-
-        fileTempDao.insert(fileTemp);
-
-        return fileTemp.getId();
     }
+
+    public Word createWord(Word word) {
+        word.setCreatedDate(Timestamp.from(Instant.now().truncatedTo(ChronoUnit.SECONDS)).toLocalDateTime());
+        return dslContext
+                .insertInto(WORD)
+                .set(dslContext.newRecord(WORD, word))
+                .returning()
+                .fetchOne()
+                .into(Word.class);
+    }
+
+    public Map<Integer, List<WordGroup>> get() {
+        return dslContext
+                .selectFrom(WORD_GROUP)
+                .fetchGroups(WORD_GROUP.USER_ID, WordGroup.class);
+    }
+
+
+    public Map<LocalDateTime, ? extends List<WordGroup>> count(Timestamp timestamp) {
+
+        return dslContext.select(
+                WORD_GROUP.fields())
+                .from(WORD_GROUP)
+                .where(
+                        DSL.trunc(
+                                WORD_GROUP.DELETED_DATE, DatePart.DAY)
+                                .le(timestamp.toLocalDateTime()))
+                .fetchGroups(WORD_GROUP.DELETED_DATE, WordGroup.class);
+    }
+
 
     public void deleteFileById(Integer fileId) {
         fileTempDao.deleteById(fileId);
     }
 
     public Integer createWordGroup(WordGroup group) {
-        WordGroup wg = fillGroupCreation(group);
+        fillGroupCreation(group);
+        wordGroupDao.insert(group);
 
-        wordGroupDao.insert(wg);
-
-        return wg.getId();
+        return group.getId();
     }
 
     public Integer updateGroup(WordGroup group) {
-        WordGroup wg = fillGroupCreation(group);
-
-        wg.setEntityId(group.getEntityId());
-
+        fillGroupCreation(group);
         wordGroupDao.insert(group);
 
-        return wg.getId();
+        return group.getId();
     }
 
     public void createWordList(List<Word> wordList, Integer groupId) {
-        List<Word> list = new ArrayList<>();
-
-        for (Word word : wordList) {
-            Word w = new Word();
-
+        wordList.forEach(w -> {
             w.setId(null);
-            w.setCreatedDate(new Timestamp(new Date().getTime()));
+            w.setCreatedDate(new Timestamp(new Date().getTime()).toLocalDateTime());
             w.setGroupId(groupId);
-            w.setWordOriginal(word.getWordOriginal());
-            w.setWordTranslation(word.getWordTranslation());
-
-            list.add(word);
-        }
-
-        wordDao.insert(list);
+        });
+        wordDao.insert(wordList);
     }
 
-    private WordGroup fillGroupCreation(WordGroup group) {
-        WordGroup wg = new WordGroup();
+    public void createWs(List<Word> words) {
+        dslContext
+                .batchInsert(words.stream()
+                        .map(word -> dslContext.newRecord(WORD, word))
+                        .collect(Collectors.toList())
+                )
+                .execute();
+    }
 
+    private void fillGroupCreation(WordGroup group) {
         Integer nextId = dslContext.nextval(Sequences.WORD_GROUP_ID_SEQ);
 
-        wg.setId(nextId);
-        wg.setCreatedDate(new Timestamp(new Date().getTime()));
-        wg.setUserId(pwRequestContext.getCurrentUser().getId());
-        wg.setName(group.getName());
-        wg.setEntityId(group.getId());
-        wg.setMixingModeId(group.getMixingModeId());
-
-        return wg;
+        group.setId(nextId);
+        group.setCreatedDate(Timestamp.from(Instant.now().truncatedTo(ChronoUnit.MINUTES)).toLocalDateTime());
+        group.setDeletedDate(null);
     }
 
     public Optional<FileTemp> getFileById(Integer id) {
@@ -165,9 +210,10 @@ public class WordRepository {
                 .fetchInto(Word.class);
     }
 
-    public void setDeletedDate(Integer entityId) {
-        dslContext.update(WORD_GROUP)
-                .set(WORD_GROUP.DELETED_DATE, new Timestamp(new Date().getTime()))
+    public void setDeletedDateByEntityId(Integer entityId) {
+        dslContext
+                .update(WORD_GROUP)
+                .set(WORD_GROUP.DELETED_DATE, Timestamp.from(Instant.now()).toLocalDateTime())
                 .where(
                         WORD_GROUP.DELETED_DATE.isNull()
                                 .and(WORD_GROUP.ENTITY_ID.eq(entityId))
@@ -175,4 +221,29 @@ public class WordRepository {
                 .execute();
     }
 
+    public Integer deleteWordById(Integer id) {
+        return dslContext
+                .deleteFrom(WORD)
+                .where(WORD.ID.eq(id))
+                .execute();
+    }
+
+    public Optional<Integer> getUserIdByWordId(Integer wordId) {
+        return dslContext
+                .selectFrom(WORD)
+                .where(WORD.ID.eq(wordId))
+                .fetchOptional()
+                .map(wordRecord -> wordRecord.fetchParent(Keys.WORD__WORD_FK0)
+                        .getUserId()
+                );
+    }
+
+    public Optional<Word> updateWord(Word word) {
+        return dslContext.update(WORD)
+                .set(dslContext.newRecord(WORD, word))
+                .where(WORD.ID.eq(word.getId()))
+                .returning()
+                .fetchOptional()
+                .map(r -> r.into(Word.class));
+    }
 }
